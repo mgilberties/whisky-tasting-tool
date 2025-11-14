@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🥃 Whisky Tasting Tool
 
-## Getting Started
+An interactive web app for hosting blind whisky tastings with friends. Participants submit their guesses privately, and the host can review all submissions before revealing the results.
 
-First, run the development server:
+## ✨ Features
+
+- **Host tasting sessions** with unique join codes
+- **Add whiskies** with detailed information (name, age, ABV, region, distillery, category, IB/OB)
+- **Participants join** using session codes
+- **Submit guesses** for each whisky (0-5 scoring system)
+- **Real-time updates** with live notifications
+- **Review submissions** before revealing results
+- **Compare results** showing actual vs. guessed details
+- **Mobile-friendly** responsive design
+
+## 🚀 Quick Setup
+
+### 1. Set up Supabase
+
+1. Go to [supabase.com](https://supabase.com) and create a new project
+2. Run the SQL schema from `supabase-schema.sql` in your Supabase SQL Editor
+3. Get your Project URL and anon key from Settings → API
+
+### 2. Environment Variables
+
+Create `.env.local` in the project root:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Run the App
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open [http://localhost:3000](http://localhost:3000) to start hosting tastings!
 
-## Learn More
+## 🎯 How to Use
 
-To learn more about Next.js, take a look at the following resources:
+### For Hosts:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Click "Host a Tasting" and enter your name
+2. Add whiskies with their details
+3. Share the session code with participants
+4. Click "Start Tasting" when everyone has joined
+5. Monitor submissions in real-time
+6. Review all guesses before revealing results
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### For Participants:
 
-## Deploy on Vercel
+1. Click "Join a Tasting" and enter the session code
+2. Wait for the host to start the tasting
+3. Taste each whisky and submit your guesses
+4. Navigate between whiskies using the whisky selector
+5. View results when the host reveals them
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🏆 Scoring System
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **0-5 scale** with 0.5 increments allowed
+- **Real-time submission tracking** for hosts
+- **Progress indicators** for participants
+- **Live notifications** for session updates
+
+## 🚀 Deploy
+
+Deploy for free on Vercel:
+
+```bash
+npm run build
+npx vercel --prod
+```
+
+Your Supabase backend is already configured for production use!
+
+## 🛠 Technical Stack
+
+- **Frontend**: Next.js 16, React, Tailwind CSS
+- **Backend**: Supabase (PostgreSQL + Real-time subscriptions)
+- **Deployment**: Vercel
+- **Real-time**: Supabase WebSocket subscriptions
+
+Perfect for whisky enthusiasts who want to add some friendly competition to their tastings! 🥃
