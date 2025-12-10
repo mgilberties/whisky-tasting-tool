@@ -12,6 +12,8 @@ type Session = Database["public"]["Tables"]["sessions"]["Row"] & {
 };
 
 type Whisky = Database["public"]["Tables"]["whiskies"]["Row"];
+type WhiskyInsert = Database["public"]["Tables"]["whiskies"]["Insert"];
+type SessionUpdate = Database["public"]["Tables"]["sessions"]["Update"];
 
 export default function HostDashboard() {
   const params = useParams();
@@ -123,17 +125,19 @@ export default function HostDashboard() {
       return;
 
     try {
-      const { error } = await supabase.from("whiskies").insert({
+      const whiskyData: WhiskyInsert = {
         session_id: sessionId,
         name: newWhisky.name,
-        age: newWhisky.age,
+        age: newWhisky.age ?? null,
         abv: newWhisky.abv,
         region: newWhisky.region,
         distillery: newWhisky.distillery,
         category: newWhisky.category || "",
-        bottling_type: newWhisky.bottling_type || "OB",
+        bottling_type: (newWhisky.bottling_type || "OB") as "IB" | "OB",
         order_index: session.whiskies.length,
-      });
+      };
+      // @ts-expect-error - Supabase type inference issue with Database type
+      const { error } = await supabase.from("whiskies").insert(whiskyData);
 
       if (error) throw error;
 
@@ -155,9 +159,11 @@ export default function HostDashboard() {
 
   const updateSessionStatus = async (status: Session["status"]) => {
     try {
+      const updateData: SessionUpdate = { status };
       const { error } = await supabase
         .from("sessions")
-        .update({ status })
+        // @ts-expect-error - Supabase type inference issue with Database type
+        .update(updateData)
         .eq("id", sessionId);
 
       if (error) throw error;
@@ -332,11 +338,10 @@ export default function HostDashboard() {
                         Whisky #{index + 1}: {whisky.name}
                       </h3>
                       <span
-                        className={`px-2 py-1 text-xs rounded ${
-                          whisky.bottling_type === "IB"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-green-100 text-green-800"
-                        }`}
+                        className={`px-2 py-1 text-xs rounded ${whisky.bottling_type === "IB"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-green-100 text-green-800"
+                          }`}
                       >
                         {whisky.bottling_type}
                       </span>

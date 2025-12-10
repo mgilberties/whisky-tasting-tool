@@ -12,6 +12,7 @@ type Session = Database["public"]["Tables"]["sessions"]["Row"] & {
 };
 
 type Submission = Database["public"]["Tables"]["submissions"]["Insert"];
+type SubmissionUpdate = Database["public"]["Tables"]["submissions"]["Update"];
 
 export default function ParticipantView() {
   const params = useParams();
@@ -176,37 +177,41 @@ export default function ParticipantView() {
 
       if (existingSubmission) {
         // Update existing submission
+        const updateData: SubmissionUpdate = {
+          guessed_name: submission.guessed_name,
+          guessed_score: submission.guessed_score,
+          guessed_age: submission.guessed_age ?? null,
+          guessed_abv: submission.guessed_abv,
+          guessed_region: submission.guessed_region,
+          guessed_distillery: submission.guessed_distillery,
+          guessed_category: submission.guessed_category || "",
+          guessed_bottling_type: (submission.guessed_bottling_type || "OB") as "IB" | "OB",
+          updated_at: new Date().toISOString(),
+        };
         const { error } = await supabase
           .from("submissions")
-          .update({
-            guessed_name: submission.guessed_name,
-            guessed_score: submission.guessed_score,
-            guessed_age: submission.guessed_age,
-            guessed_abv: submission.guessed_abv,
-            guessed_region: submission.guessed_region,
-            guessed_distillery: submission.guessed_distillery,
-            guessed_category: submission.guessed_category || "",
-            guessed_bottling_type: submission.guessed_bottling_type || "OB",
-            updated_at: new Date().toISOString(),
-          })
+          // @ts-expect-error - Supabase type inference issue with Database type
+          .update(updateData)
           .eq("id", existingSubmission.id);
 
         if (error) throw error;
       } else {
         // Create new submission
-        const { error } = await supabase.from("submissions").insert({
+        const insertData: Submission = {
           session_id: sessionId,
-          participant_id: participantId,
+          participant_id: participantId!,
           whisky_id: whiskyId,
           guessed_name: submission.guessed_name,
           guessed_score: submission.guessed_score,
-          guessed_age: submission.guessed_age,
+          guessed_age: submission.guessed_age ?? null,
           guessed_abv: submission.guessed_abv,
           guessed_region: submission.guessed_region,
           guessed_distillery: submission.guessed_distillery,
           guessed_category: submission.guessed_category || "",
-          guessed_bottling_type: submission.guessed_bottling_type || "OB",
-        });
+          guessed_bottling_type: (submission.guessed_bottling_type || "OB") as "IB" | "OB",
+        };
+        // @ts-expect-error - Supabase type inference issue with Database type
+        const { error } = await supabase.from("submissions").insert(insertData);
 
         if (error) throw error;
       }
@@ -322,11 +327,10 @@ export default function ParticipantView() {
                       Whisky #{index + 1}: {whisky.name}
                     </h2>
                     <span
-                      className={`px-3 py-1 text-sm rounded-full ${
-                        whisky.bottling_type === "IB"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-green-100 text-green-800"
-                      }`}
+                      className={`px-3 py-1 text-sm rounded-full ${whisky.bottling_type === "IB"
+                        ? "bg-blue-100 text-blue-800"
+                        : "bg-green-100 text-green-800"
+                        }`}
                     >
                       {whisky.bottling_type}
                     </span>
@@ -416,11 +420,10 @@ export default function ParticipantView() {
                       return (
                         <div
                           key={submission.id}
-                          className={`p-3 rounded-lg ${
-                            isMySubmission
-                              ? "bg-blue-50 border border-blue-200"
-                              : "bg-gray-50"
-                          }`}
+                          className={`p-3 rounded-lg ${isMySubmission
+                            ? "bg-blue-50 border border-blue-200"
+                            : "bg-gray-50"
+                            }`}
                         >
                           <div className="font-medium mb-2">
                             {submittingParticipant?.name}{" "}
@@ -532,9 +535,8 @@ export default function ParticipantView() {
             <div
               className="bg-amber-600 h-2 rounded-full transition-all duration-300"
               style={{
-                width: `${
-                  ((currentWhiskyIndex + 1) / sortedWhiskies.length) * 100
-                }%`,
+                width: `${((currentWhiskyIndex + 1) / sortedWhiskies.length) * 100
+                  }%`,
               }}
             ></div>
           </div>
@@ -740,8 +742,8 @@ export default function ParticipantView() {
                 {submitting
                   ? "Saving..."
                   : hasSubmittedForCurrent
-                  ? "Update Guess"
-                  : "Submit Guess"}
+                    ? "Update Guess"
+                    : "Submit Guess"}
               </button>
               {currentWhiskyIndex < sortedWhiskies.length - 1 && (
                 <button
@@ -772,13 +774,12 @@ export default function ParticipantView() {
                 <button
                   key={whisky.id}
                   onClick={() => setCurrentWhiskyIndex(index)}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isCurrent
-                      ? "bg-amber-600 text-white"
-                      : hasSubmission
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isCurrent
+                    ? "bg-amber-600 text-white"
+                    : hasSubmission
                       ? "bg-green-100 text-green-800 hover:bg-green-200"
                       : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
+                    }`}
                 >
                   #{index + 1} {hasSubmission && "✓"}
                 </button>
