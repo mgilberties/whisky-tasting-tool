@@ -6,6 +6,7 @@ An interactive web app for hosting blind whisky tastings with friends. Participa
 
 - **Host tasting sessions** with unique join codes
 - **Add whiskies** with detailed information (name, age, ABV, region, distillery, category, IB/OB)
+- **Smart dropdowns** for regions and distilleries with linked filtering
 - **Participants join** using session codes
 - **Submit guesses** for each whisky (0-5 scoring system)
 - **Real-time updates** with live notifications
@@ -21,7 +22,9 @@ An interactive web app for hosting blind whisky tastings with friends. Participa
 1. Go to [supabase.com](https://supabase.com) and create a new project
 2. Run the SQL schema from `supabase-schema.sql` in your Supabase SQL Editor
    - This includes the `keep_alive` table to prevent project pausing
-3. Get your Project URL and anon key from Settings → API
+3. Run the regions and distilleries seed from `supabase-regions-distilleries.sql` in your Supabase SQL Editor
+   - This creates dropdown options for regions and distilleries with linked filtering
+4. Get your Project URL and anon key from Settings → API
 
 ### 2. Environment Variables
 

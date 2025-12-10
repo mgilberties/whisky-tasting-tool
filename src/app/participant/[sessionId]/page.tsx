@@ -2,7 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { supabase, getSessionWithParticipants } from "@/lib/supabase";
+import {
+  supabase,
+  getSessionWithParticipants,
+  getRegions,
+  getDistilleriesByRegion,
+} from "@/lib/supabase";
 import { Database } from "@/types/database";
 
 type Session = Database["public"]["Tables"]["sessions"]["Row"] & {
@@ -32,6 +37,15 @@ export default function ParticipantView() {
   }>({});
   const [submitting, setSubmitting] = useState(false);
   const [statusUpdate, setStatusUpdate] = useState<string | null>(null);
+  const [regions, setRegions] = useState<
+    Database["public"]["Tables"]["regions"]["Row"][]
+  >([]);
+  const [distilleries, setDistilleries] = useState<{
+    [whiskyId: string]: Database["public"]["Tables"]["distilleries"]["Row"][];
+  }>({});
+  const [selectedRegionIds, setSelectedRegionIds] = useState<{
+    [whiskyId: string]: string;
+  }>({});
 
   useEffect(() => {
     if (!participantId) {
@@ -41,6 +55,7 @@ export default function ParticipantView() {
     }
 
     loadSession();
+    loadRegions();
 
     // Subscribe to real-time updates
     const channel = supabase
@@ -134,11 +149,65 @@ export default function ParticipantView() {
         }
       });
       setSubmissions(existingSubmissions);
+
+      // Load region IDs and distilleries for existing submissions
+      // This needs to happen after regions are loaded
+      if (regions.length > 0) {
+        const regionIds: { [whiskyId: string]: string } = {};
+        Object.entries(existingSubmissions).forEach(([whiskyId, sub]) => {
+          if (sub.guessed_region) {
+            const region = regions.find((r) => r.name === sub.guessed_region);
+            if (region) {
+              regionIds[whiskyId] = region.id;
+              loadDistilleriesForWhisky(whiskyId, region.id);
+            }
+          }
+        });
+        setSelectedRegionIds((prev) => ({ ...prev, ...regionIds }));
+      }
     } catch (err) {
       setError("Failed to load session");
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRegions = async () => {
+    try {
+      const regionsData = await getRegions();
+      setRegions(regionsData);
+      // After loading regions, initialize region IDs for existing submissions
+      if (session) {
+        const regionIds: { [whiskyId: string]: string } = {};
+        Object.entries(submissions).forEach(([whiskyId, sub]) => {
+          if (sub.guessed_region) {
+            const region = regionsData.find((r) => r.name === sub.guessed_region);
+            if (region) {
+              regionIds[whiskyId] = region.id;
+              loadDistilleriesForWhisky(whiskyId, region.id);
+            }
+          }
+        });
+        setSelectedRegionIds((prev) => ({ ...prev, ...regionIds }));
+      }
+    } catch (err) {
+      console.error("Failed to load regions:", err);
+    }
+  };
+
+  const loadDistilleriesForWhisky = async (
+    whiskyId: string,
+    regionId: string
+  ) => {
+    try {
+      const distilleriesData = await getDistilleriesByRegion(regionId);
+      setDistilleries((prev) => ({
+        ...prev,
+        [whiskyId]: distilleriesData,
+      }));
+    } catch (err) {
+      console.error("Failed to load distilleries:", err);
     }
   };
 
@@ -150,6 +219,25 @@ export default function ParticipantView() {
         [field]: value,
       },
     }));
+
+    // If region changes, load distilleries and reset distillery
+    if (field === "guessed_region") {
+      const selectedRegion = regions.find((r) => r.name === value);
+      if (selectedRegion) {
+        setSelectedRegionIds((prev) => ({
+          ...prev,
+          [whiskyId]: selectedRegion.id,
+        }));
+        loadDistilleriesForWhisky(whiskyId, selectedRegion.id);
+        setSubmissions((prev) => ({
+          ...prev,
+          [whiskyId]: {
+            ...prev[whiskyId],
+            guessed_distillery: "",
+          },
+        }));
+      }
+    }
   };
 
   const submitGuess = async (whiskyId: string) => {
@@ -651,8 +739,7 @@ export default function ParticipantView() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Region *
               </label>
-              <input
-                type="text"
+              <select
                 value={currentSubmission.guessed_region || ""}
                 onChange={(e) =>
                   updateSubmission(
@@ -662,17 +749,22 @@ export default function ParticipantView() {
                   )
                 }
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                placeholder="e.g., Speyside, Highland, Islay"
                 required
-              />
+              >
+                <option value="">Select a region</option>
+                {regions.map((region) => (
+                  <option key={region.id} value={region.name}>
+                    {region.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Distillery *
               </label>
-              <input
-                type="text"
+              <select
                 value={currentSubmission.guessed_distillery || ""}
                 onChange={(e) =>
                   updateSubmission(
@@ -682,9 +774,26 @@ export default function ParticipantView() {
                   )
                 }
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                placeholder="Your best guess for the distillery"
                 required
-              />
+                disabled={
+                  !selectedRegionIds[currentWhisky.id] ||
+                  !distilleries[currentWhisky.id] ||
+                  distilleries[currentWhisky.id].length === 0
+                }
+              >
+                <option value="">
+                  {selectedRegionIds[currentWhisky.id]
+                    ? distilleries[currentWhisky.id]?.length === 0
+                      ? "Loading..."
+                      : "Select a distillery"
+                    : "Select a region first"}
+                </option>
+                {distilleries[currentWhisky.id]?.map((distillery) => (
+                  <option key={distillery.id} value={distillery.name}>
+                    {distillery.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>

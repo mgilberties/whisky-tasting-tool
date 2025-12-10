@@ -111,3 +111,31 @@ export const getSessionWithParticipants = async (
     submissions: Database["public"]["Tables"]["submissions"]["Row"][];
   };
 };
+
+// Helper functions for regions and distilleries
+export const getRegions = async (): Promise<
+  Database["public"]["Tables"]["regions"]["Row"][]
+> => {
+  const { data, error } = await supabase
+    .from("regions")
+    .select("*")
+    .order("name", { ascending: true });
+
+  if (error) throw error;
+  return (data as Database["public"]["Tables"]["regions"]["Row"][]) || [];
+};
+
+export const getDistilleriesByRegion = async (
+  regionId: string
+): Promise<
+  Database["public"]["Tables"]["distilleries"]["Row"][]
+> => {
+  const { data, error } = await supabase
+    .from("distilleries")
+    .select("*")
+    .eq("region_id", regionId)
+    .order("name", { ascending: true });
+
+  if (error) throw error;
+  return (data as Database["public"]["Tables"]["distilleries"]["Row"][]) || [];
+};

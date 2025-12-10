@@ -2,7 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { supabase, getSessionWithParticipants } from "@/lib/supabase";
+import {
+  supabase,
+  getSessionWithParticipants,
+  getRegions,
+  getDistilleriesByRegion,
+} from "@/lib/supabase";
 import { Database } from "@/types/database";
 
 type Session = Database["public"]["Tables"]["sessions"]["Row"] & {
@@ -33,9 +38,17 @@ export default function HostDashboard() {
     bottling_type: "OB",
   });
   const [showAddWhisky, setShowAddWhisky] = useState(false);
+  const [regions, setRegions] = useState<
+    Database["public"]["Tables"]["regions"]["Row"][]
+  >([]);
+  const [distilleries, setDistilleries] = useState<
+    Database["public"]["Tables"]["distilleries"]["Row"][]
+  >([]);
+  const [selectedRegionId, setSelectedRegionId] = useState<string>("");
 
   useEffect(() => {
     loadSession();
+    loadRegions();
 
     // Subscribe to real-time updates
     const channel = supabase
@@ -101,6 +114,15 @@ export default function HostDashboard() {
     };
   }, [sessionId]);
 
+  useEffect(() => {
+    if (selectedRegionId) {
+      loadDistilleries(selectedRegionId);
+    } else {
+      setDistilleries([]);
+      setNewWhisky({ ...newWhisky, distillery: "" });
+    }
+  }, [selectedRegionId]);
+
   const loadSession = async () => {
     try {
       const sessionData = await getSessionWithParticipants(sessionId);
@@ -110,6 +132,24 @@ export default function HostDashboard() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRegions = async () => {
+    try {
+      const regionsData = await getRegions();
+      setRegions(regionsData);
+    } catch (err) {
+      console.error("Failed to load regions:", err);
+    }
+  };
+
+  const loadDistilleries = async (regionId: string) => {
+    try {
+      const distilleriesData = await getDistilleriesByRegion(regionId);
+      setDistilleries(distilleriesData);
+    } catch (err) {
+      console.error("Failed to load distilleries:", err);
     }
   };
 
@@ -150,6 +190,8 @@ export default function HostDashboard() {
         category: "",
         bottling_type: "OB",
       });
+      setSelectedRegionId("");
+      setDistilleries([]);
       setShowAddWhisky(false);
       loadSession();
     } catch (err) {
@@ -491,29 +533,55 @@ export default function HostDashboard() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Region *
                   </label>
-                  <input
-                    type="text"
-                    value={newWhisky.region || ""}
-                    onChange={(e) =>
-                      setNewWhisky({ ...newWhisky, region: e.target.value })
-                    }
+                  <select
+                    value={selectedRegionId}
+                    onChange={(e) => {
+                      const regionId = e.target.value;
+                      setSelectedRegionId(regionId);
+                      const selectedRegion = regions.find((r) => r.id === regionId);
+                      setNewWhisky({
+                        ...newWhisky,
+                        region: selectedRegion?.name || "",
+                        distillery: "", // Reset distillery when region changes
+                      });
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                     required
-                  />
+                  >
+                    <option value="">Select a region</option>
+                    {regions.map((region) => (
+                      <option key={region.id} value={region.id}>
+                        {region.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Distillery *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={newWhisky.distillery || ""}
                     onChange={(e) =>
                       setNewWhisky({ ...newWhisky, distillery: e.target.value })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                     required
-                  />
+                    disabled={!selectedRegionId || distilleries.length === 0}
+                  >
+                    <option value="">
+                      {selectedRegionId
+                        ? distilleries.length === 0
+                          ? "Loading..."
+                          : "Select a distillery"
+                        : "Select a region first"}
+                    </option>
+                    {distilleries.map((distillery) => (
+                      <option key={distillery.id} value={distillery.name}>
+                        {distillery.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -173,6 +173,43 @@ export interface Database {
           created_at?: string;
         };
       };
+      regions: {
+        Row: {
+          id: string;
+          name: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          created_at?: string;
+        };
+      };
+      distilleries: {
+        Row: {
+          id: string;
+          name: string;
+          region_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          region_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          region_id?: string;
+          created_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
