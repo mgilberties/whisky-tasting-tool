@@ -12,6 +12,7 @@ An interactive web app for hosting blind whisky tastings with friends. Participa
 - **Review submissions** before revealing results
 - **Compare results** showing actual vs. guessed details
 - **Mobile-friendly** responsive design
+- **Auto keep-alive** prevents Supabase project from pausing (runs every 6 hours via Vercel cron)
 
 ## 🚀 Quick Setup
 
@@ -19,6 +20,7 @@ An interactive web app for hosting blind whisky tastings with friends. Participa
 
 1. Go to [supabase.com](https://supabase.com) and create a new project
 2. Run the SQL schema from `supabase-schema.sql` in your Supabase SQL Editor
+   - This includes the `keep_alive` table to prevent project pausing
 3. Get your Project URL and anon key from Settings → API
 
 ### 2. Environment Variables
@@ -74,7 +76,22 @@ npm run build
 npx vercel --prod
 ```
 
+**Important:** After deploying, make sure to:
+1. Add your environment variables in Vercel (Settings → Environment Variables)
+2. The keep-alive cron job will automatically start running every 6 hours to prevent Supabase pausing
+
 Your Supabase backend is already configured for production use!
+
+## 🔄 Keep-Alive Feature
+
+This project includes an automatic keep-alive mechanism to prevent your Supabase project from pausing due to inactivity (free tier projects pause after 7 days of inactivity).
+
+- **How it works:** A Vercel cron job calls `/api/keep-alive` every 6 hours
+- **What it does:** Makes a simple database query to keep your Supabase project active
+- **Setup:** Already configured! Just deploy to Vercel and the cron job will start automatically
+- **Manual test:** Visit `https://your-app.vercel.app/api/keep-alive` to test the endpoint
+
+The keep-alive table is included in `supabase-schema.sql`, so no additional setup is needed.
 
 ## 🛠 Technical Stack
 

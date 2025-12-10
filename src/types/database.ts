@@ -7,11 +7,11 @@ export interface Database {
           code: string;
           host_name: string;
           status:
-            | "waiting"
-            | "collecting"
-            | "reviewing"
-            | "revealed"
-            | "finished";
+          | "waiting"
+          | "collecting"
+          | "reviewing"
+          | "revealed"
+          | "finished";
           created_at: string;
           updated_at: string;
         };
@@ -20,11 +20,11 @@ export interface Database {
           code: string;
           host_name: string;
           status?:
-            | "waiting"
-            | "collecting"
-            | "reviewing"
-            | "revealed"
-            | "finished";
+          | "waiting"
+          | "collecting"
+          | "reviewing"
+          | "revealed"
+          | "finished";
           created_at?: string;
           updated_at?: string;
         };
@@ -33,11 +33,11 @@ export interface Database {
           code?: string;
           host_name?: string;
           status?:
-            | "waiting"
-            | "collecting"
-            | "reviewing"
-            | "revealed"
-            | "finished";
+          | "waiting"
+          | "collecting"
+          | "reviewing"
+          | "revealed"
+          | "finished";
           created_at?: string;
           updated_at?: string;
         };
@@ -151,6 +151,26 @@ export interface Database {
           guessed_bottling_type?: "IB" | "OB";
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      keep_alive: {
+        Row: {
+          id: number;
+          name: string | null;
+          random: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          name?: string | null;
+          random?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          name?: string | null;
+          random?: string | null;
+          created_at?: string;
         };
       };
     };
