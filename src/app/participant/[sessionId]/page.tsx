@@ -581,12 +581,8 @@ export default function ParticipantView() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Score (0-5) *
               </label>
-              <input
-                type="number"
-                min="0"
-                max="5"
-                step="0.5"
-                value={currentSubmission.guessed_score || ""}
+              <select
+                value={currentSubmission.guessed_score ?? ""}
                 onChange={(e) =>
                   updateSubmission(
                     currentWhisky.id,
@@ -595,9 +591,15 @@ export default function ParticipantView() {
                   )
                 }
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                placeholder="Rate this whisky 0-5"
                 required
-              />
+              >
+                <option value="">Select a score</option>
+                {[0, 1, 2, 3, 4, 5].map((score) => (
+                  <option key={score} value={score}>
+                    {score}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
