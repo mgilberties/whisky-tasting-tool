@@ -6,6 +6,7 @@ export interface Database {
           id: string;
           code: string;
           host_name: string;
+          host_user_id: string | null;
           status:
           | "waiting"
           | "collecting"
@@ -19,6 +20,7 @@ export interface Database {
           id?: string;
           code: string;
           host_name: string;
+          host_user_id?: string | null;
           status?:
           | "waiting"
           | "collecting"
@@ -32,6 +34,7 @@ export interface Database {
           id?: string;
           code?: string;
           host_name?: string;
+          host_user_id?: string | null;
           status?:
           | "waiting"
           | "collecting"
@@ -47,19 +50,51 @@ export interface Database {
           id: string;
           session_id: string;
           name: string;
+          user_id: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           session_id: string;
           name: string;
+          user_id?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
           session_id?: string;
           name?: string;
+          user_id?: string | null;
           created_at?: string;
+        };
+      };
+      session_invitations: {
+        Row: {
+          id: string;
+          session_id: string;
+          email: string;
+          invited_by: string | null;
+          status: "pending" | "accepted" | "declined";
+          created_at: string;
+          accepted_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          email: string;
+          invited_by?: string | null;
+          status?: "pending" | "accepted" | "declined";
+          created_at?: string;
+          accepted_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          email?: string;
+          invited_by?: string | null;
+          status?: "pending" | "accepted" | "declined";
+          created_at?: string;
+          accepted_at?: string | null;
         };
       };
       whiskies: {
@@ -222,12 +257,56 @@ export interface Database {
           created_at?: string;
         };
       };
+      user_profiles: {
+        Row: {
+          id: string;
+          email: string;
+          name: string | null;
+          is_disabled: boolean;
+          disabled_at: string | null;
+          disabled_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          email: string;
+          name?: string | null;
+          is_disabled?: boolean;
+          disabled_at?: string | null;
+          disabled_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          name?: string | null;
+          is_disabled?: boolean;
+          disabled_at?: string | null;
+          disabled_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      disable_user_account: {
+        Args: {
+          user_id: string;
+          disabled_by_user_id?: string | null;
+        };
+        Returns: void;
+      };
+      enable_user_account: {
+        Args: {
+          user_id: string;
+        };
+        Returns: void;
+      };
     };
     Enums: {
       [_ in never]: never;

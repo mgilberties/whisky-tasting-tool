@@ -16,7 +16,12 @@ if (!url || !key) {
   }
 }
 
-export const supabase = createClient<Database>(url, key);
+export const supabase = createClient<Database>(url, key, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+});
 
 // Helper functions for common operations
 export const generateSessionCode = (): string => {
@@ -24,9 +29,13 @@ export const generateSessionCode = (): string => {
 };
 
 export const createSession = async (
-  hostName: string
+  hostName: string,
+  hostUserId?: string
 ): Promise<Database["public"]["Tables"]["sessions"]["Row"]> => {
   const code = generateSessionCode();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId = hostUserId || user?.id;
 
   const { data, error } = await supabase
     .from("sessions")
@@ -34,6 +43,7 @@ export const createSession = async (
     .insert({
       code,
       host_name: hostName,
+      host_user_id: userId || null,
       status: "waiting",
     })
     .select()
@@ -46,7 +56,8 @@ export const createSession = async (
 
 export const joinSession = async (
   code: string,
-  participantName: string
+  participantName: string,
+  userId?: string | null
 ): Promise<{
   session: Database["public"]["Tables"]["sessions"]["Row"];
   participant: Database["public"]["Tables"]["participants"]["Row"];
@@ -64,6 +75,12 @@ export const joinSession = async (
 
   const session = sessionData as Database["public"]["Tables"]["sessions"]["Row"];
 
+  // Get current user if not provided
+  if (!userId) {
+    const { data: { user } } = await supabase.auth.getUser();
+    userId = user?.id || null;
+  }
+
   // Add participant
   const { data: participant, error: participantError } = await supabase
     .from("participants")
@@ -71,6 +88,7 @@ export const joinSession = async (
     .insert({
       session_id: session.id,
       name: participantName,
+      user_id: userId,
     })
     .select()
     .single();
@@ -138,4 +156,52 @@ export const getDistilleriesByRegion = async (
 
   if (error) throw error;
   return (data as Database["public"]["Tables"]["distilleries"]["Row"][]) || [];
+};
+
+// User management functions
+export const disableUserAccount = async (userId: string, disabledByUserId?: string) => {
+  const { error } = await supabase
+    .rpc("disable_user_account", {
+      user_id: userId,
+      disabled_by_user_id: disabledByUserId || null,
+    } as any);
+  if (error) throw error;
+};
+
+export const enableUserAccount = async (userId: string) => {
+  const { error } = await supabase
+    .rpc("enable_user_account", {
+      user_id: userId,
+    } as any);
+  if (error) throw error;
+};
+
+export const getUserProfile = async (userId: string): Promise<Database["public"]["Tables"]["user_profiles"]["Row"] | null> => {
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .select("*")
+    .eq("id", userId)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") return null; // Not found
+    throw error;
+  }
+  return data as Database["public"]["Tables"]["user_profiles"]["Row"];
+};
+
+export const checkIfUserDisabled = async (userId: string): Promise<boolean> => {
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .select("is_disabled")
+    .eq("id", userId)
+    .single();
+
+  if (error) {
+    // If profile doesn't exist, user is not disabled
+    if (error.code === "PGRST116") return false;
+    throw error;
+  }
+
+  return (data as { is_disabled: boolean })?.is_disabled || false;
 };
