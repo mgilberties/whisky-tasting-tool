@@ -73,6 +73,10 @@ export interface Database {
           distillery: string;
           category: string;
           bottling_type: "IB" | "OB";
+          cask_type: string | null;
+          host_score: number | null;
+          whiskybase_link: string | null;
+          tasting_reference: string | null;
           order_index: number;
           created_at: string;
         };
@@ -86,6 +90,10 @@ export interface Database {
           distillery: string;
           category: string;
           bottling_type: "IB" | "OB";
+          cask_type?: string | null;
+          host_score?: number | null;
+          whiskybase_link?: string | null;
+          tasting_reference?: string | null;
           order_index: number;
           created_at?: string;
         };
@@ -99,6 +107,10 @@ export interface Database {
           distillery?: string;
           category?: string;
           bottling_type?: "IB" | "OB";
+          cask_type?: string | null;
+          host_score?: number | null;
+          whiskybase_link?: string | null;
+          tasting_reference?: string | null;
           order_index?: number;
           created_at?: string;
         };

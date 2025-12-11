@@ -89,7 +89,7 @@ Your Supabase backend is already configured for production use!
 
 This project includes an automatic keep-alive mechanism to prevent your Supabase project from pausing due to inactivity (free tier projects pause after 7 days of inactivity).
 
-- **How it works:** A Vercel cron job calls `/api/keep-alive` every 6 hours
+- **How it works:** A Vercel cron job calls `/api/keep-alive` once daily at 12:00 PM UTC
 - **What it does:** Makes a simple database query to keep your Supabase project active
 - **Setup:** Already configured! Just deploy to Vercel and the cron job will start automatically
 - **Manual test:** Visit `https://your-app.vercel.app/api/keep-alive` to test the endpoint

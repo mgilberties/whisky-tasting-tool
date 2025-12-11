@@ -33,6 +33,10 @@ CREATE TABLE public.whiskies (
     distillery VARCHAR(255) NOT NULL,
     category VARCHAR(255) DEFAULT '',
     bottling_type VARCHAR(2) DEFAULT 'OB' CHECK (bottling_type IN ('IB', 'OB')),
+    cask_type VARCHAR(255),
+    host_score INTEGER CHECK (host_score >= 0 AND host_score <= 5),
+    whiskybase_link VARCHAR(500),
+    tasting_reference VARCHAR(500),
     order_index INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -86,6 +90,7 @@ CREATE POLICY "Enable insert for all users" ON public.participants FOR INSERT WI
 -- Whiskies policies
 CREATE POLICY "Enable read access for all users" ON public.whiskies FOR SELECT USING (true);
 CREATE POLICY "Enable insert for all users" ON public.whiskies FOR INSERT WITH CHECK (true);
+CREATE POLICY "Enable update for all users" ON public.whiskies FOR UPDATE USING (true);
 
 -- Submissions policies
 CREATE POLICY "Enable read access for all users" ON public.submissions FOR SELECT USING (true);

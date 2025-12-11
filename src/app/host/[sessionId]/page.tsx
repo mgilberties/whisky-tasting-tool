@@ -36,8 +36,13 @@ export default function HostDashboard() {
     distillery: "",
     category: "",
     bottling_type: "OB",
+    cask_type: null,
+    host_score: null,
+    whiskybase_link: null,
+    tasting_reference: null,
   });
   const [showAddWhisky, setShowAddWhisky] = useState(false);
+  const [editingWhisky, setEditingWhisky] = useState<Whisky | null>(null);
   const [regions, setRegions] = useState<
     Database["public"]["Tables"]["regions"]["Row"][]
   >([]);
@@ -45,6 +50,8 @@ export default function HostDashboard() {
     Database["public"]["Tables"]["distilleries"]["Row"][]
   >([]);
   const [selectedRegionId, setSelectedRegionId] = useState<string>("");
+  const [editSelectedRegionId, setEditSelectedRegionId] = useState<string>("");
+  const [isUpdatingWhisky, setIsUpdatingWhisky] = useState(false);
 
   useEffect(() => {
     loadSession();
@@ -107,6 +114,30 @@ export default function HostDashboard() {
           loadSession();
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "whiskies",
+          filter: `session_id=eq.${sessionId}`,
+        },
+        () => {
+          loadSession();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "whiskies",
+          filter: `session_id=eq.${sessionId}`,
+        },
+        () => {
+          loadSession();
+        }
+      )
       .subscribe();
 
     return () => {
@@ -122,6 +153,12 @@ export default function HostDashboard() {
       setNewWhisky({ ...newWhisky, distillery: "" });
     }
   }, [selectedRegionId]);
+
+  useEffect(() => {
+    if (editSelectedRegionId) {
+      loadDistilleries(editSelectedRegionId);
+    }
+  }, [editSelectedRegionId]);
 
   const loadSession = async () => {
     try {
@@ -174,6 +211,10 @@ export default function HostDashboard() {
         distillery: newWhisky.distillery,
         category: newWhisky.category || "",
         bottling_type: (newWhisky.bottling_type || "OB") as "IB" | "OB",
+        cask_type: newWhisky.cask_type || null,
+        host_score: newWhisky.host_score ?? null,
+        whiskybase_link: newWhisky.whiskybase_link || null,
+        tasting_reference: newWhisky.tasting_reference || null,
         order_index: session.whiskies.length,
       };
       // @ts-expect-error - Supabase type inference issue with Database type
@@ -189,6 +230,10 @@ export default function HostDashboard() {
         distillery: "",
         category: "",
         bottling_type: "OB",
+        cask_type: null,
+        host_score: null,
+        whiskybase_link: null,
+        tasting_reference: null,
       });
       setSelectedRegionId("");
       setDistilleries([]);
@@ -196,6 +241,118 @@ export default function HostDashboard() {
       loadSession();
     } catch (err) {
       console.error("Failed to add whisky:", err);
+    }
+  };
+
+  const updateWhisky = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (
+      !session ||
+      !editingWhisky ||
+      !editingWhisky.name ||
+      !editingWhisky.abv ||
+      !editingWhisky.region ||
+      !editingWhisky.distillery
+    ) {
+      console.error("Validation failed:", { session, editingWhisky });
+      setError("Please fill in all required fields.");
+      setTimeout(() => setError(""), 5000);
+      return;
+    }
+
+    setIsUpdatingWhisky(true);
+    try {
+      const whiskyUpdate: Database["public"]["Tables"]["whiskies"]["Update"] = {
+        name: editingWhisky.name,
+        age: editingWhisky.age ?? null,
+        abv: editingWhisky.abv,
+        region: editingWhisky.region,
+        distillery: editingWhisky.distillery,
+        category: editingWhisky.category || "",
+        bottling_type: (editingWhisky.bottling_type || "OB") as "IB" | "OB",
+        cask_type: editingWhisky.cask_type || null,
+        host_score: editingWhisky.host_score ?? null,
+        whiskybase_link: editingWhisky.whiskybase_link || null,
+        tasting_reference: editingWhisky.tasting_reference || null,
+      };
+
+      console.log("Updating whisky:", editingWhisky.id, whiskyUpdate);
+
+      const { data, error } = await supabase
+        .from("whiskies")
+        // @ts-expect-error - Supabase type inference issue with Database type
+        .update(whiskyUpdate)
+        .eq("id", editingWhisky.id)
+        .select();
+
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+
+      console.log("Whisky updated successfully:", data);
+
+      setEditingWhisky(null);
+      setEditSelectedRegionId("");
+      setDistilleries([]);
+      await loadSession();
+
+      setLiveUpdate("Whisky updated successfully");
+      setTimeout(() => setLiveUpdate(null), 3000);
+    } catch (err) {
+      console.error("Failed to update whisky:", err);
+      setError("Failed to update whisky. Please try again.");
+      setTimeout(() => setError(""), 5000);
+    } finally {
+      setIsUpdatingWhisky(false);
+    }
+  };
+
+  const startEditingWhisky = (whisky: Whisky) => {
+    setEditingWhisky({ ...whisky });
+    // Find the region ID from the region name
+    const region = regions.find((r) => r.name === whisky.region);
+    if (region) {
+      setEditSelectedRegionId(region.id);
+      loadDistilleries(region.id);
+    }
+  };
+
+  const reorderWhisky = async (whiskyId: string, direction: "up" | "down") => {
+    if (!session) return;
+
+    const sortedWhiskies = [...session.whiskies].sort(
+      (a, b) => a.order_index - b.order_index
+    );
+    const currentIndex = sortedWhiskies.findIndex((w) => w.id === whiskyId);
+
+    if (currentIndex === -1) return;
+
+    const newIndex =
+      direction === "up" ? currentIndex - 1 : currentIndex + 1;
+
+    if (newIndex < 0 || newIndex >= sortedWhiskies.length) return;
+
+    const currentWhisky = sortedWhiskies[currentIndex];
+    const targetWhisky = sortedWhiskies[newIndex];
+
+    try {
+      // Swap order indices
+      await supabase
+        .from("whiskies")
+        // @ts-expect-error - Supabase type inference issue with Database type
+        .update({ order_index: targetWhisky.order_index })
+        .eq("id", currentWhisky.id);
+
+      await supabase
+        .from("whiskies")
+        // @ts-expect-error - Supabase type inference issue with Database type
+        .update({ order_index: currentWhisky.order_index })
+        .eq("id", targetWhisky.id);
+
+      await loadSession();
+    } catch (err) {
+      console.error("Failed to reorder whisky:", err);
     }
   };
 
@@ -387,6 +544,38 @@ export default function HostDashboard() {
                       >
                         {whisky.bottling_type}
                       </span>
+                      <div className="flex items-center gap-2">
+                        {session.status === "waiting" && (
+                          <>
+
+                            <button
+                              onClick={() => startEditingWhisky(whisky)}
+                              className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                            >
+                              Edit
+                            </button>
+                          </>
+                        )}
+
+                        <div className="flex flex-col gap-1">
+                          <button
+                            onClick={() => reorderWhisky(whisky.id, "up")}
+                            disabled={index === 0}
+                            className="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
+                            title="Move up"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            onClick={() => reorderWhisky(whisky.id, "down")}
+                            disabled={index === session.whiskies.length - 1}
+                            className="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
+                            title="Move down"
+                          >
+                            ↓
+                          </button>
+                        </div>
+                      </div>
                     </div>
                     <div className="grid md:grid-cols-4 gap-4 text-sm text-gray-600">
                       <div>
@@ -405,12 +594,47 @@ export default function HostDashboard() {
                         {whisky.distillery}
                       </div>
                     </div>
-                    {whisky.category && (
-                      <div className="mt-2 text-sm text-gray-600">
-                        <span className="font-medium">Category:</span>{" "}
-                        {whisky.category}
-                      </div>
-                    )}
+                    <div className="grid md:grid-cols-2 gap-4 text-sm text-gray-600 mt-2">
+                      {whisky.category && (
+                        <div>
+                          <span className="font-medium">Category:</span>{" "}
+                          {whisky.category}
+                        </div>
+                      )}
+                      {whisky.cask_type && (
+                        <div>
+                          <span className="font-medium">Cask Type:</span>{" "}
+                          {whisky.cask_type}
+                        </div>
+                      )}
+                      {session.status === "revealed" && whisky.host_score !== null && (
+                        <div>
+                          <span className="font-medium">My Score:</span>{" "}
+                          <span className="font-bold text-amber-600">
+                            {whisky.host_score}/5
+                          </span>
+                        </div>
+                      )}
+                      {whisky.whiskybase_link && (
+                        <div>
+                          <span className="font-medium">WhiskyBase:</span>{" "}
+                          <a
+                            href={whisky.whiskybase_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline"
+                          >
+                            View on WhiskyBase
+                          </a>
+                        </div>
+                      )}
+                      {whisky.tasting_reference && (
+                        <div>
+                          <span className="font-medium">Tasting Reference:</span>{" "}
+                          {whisky.tasting_reference}
+                        </div>
+                      )}
+                    </div>
 
                     {/* Show submissions for this whisky if in reviewing mode */}
                     {session.status === "reviewing" && (
@@ -615,6 +839,71 @@ export default function HostDashboard() {
                     <option value="IB">Independent Bottling (IB)</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cask Type
+                  </label>
+                  <input
+                    type="text"
+                    value={newWhisky.cask_type || ""}
+                    onChange={(e) =>
+                      setNewWhisky({ ...newWhisky, cask_type: e.target.value || null })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    placeholder="e.g., Bourbon, Sherry, Port"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    My Score
+                  </label>
+                  <select
+                    value={newWhisky.host_score ?? ""}
+                    onChange={(e) =>
+                      setNewWhisky({
+                        ...newWhisky,
+                        host_score: e.target.value ? parseInt(e.target.value) : null,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  >
+                    <option value="">Not scored yet</option>
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    WhiskyBase Link
+                  </label>
+                  <input
+                    type="url"
+                    value={newWhisky.whiskybase_link || ""}
+                    onChange={(e) =>
+                      setNewWhisky({ ...newWhisky, whiskybase_link: e.target.value || null })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    placeholder="https://www.whiskybase.com/whiskies/..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tasting Reference
+                  </label>
+                  <input
+                    type="text"
+                    value={newWhisky.tasting_reference || ""}
+                    onChange={(e) =>
+                      setNewWhisky({ ...newWhisky, tasting_reference: e.target.value || null })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    placeholder="e.g., Book name, website, notes"
+                  />
+                </div>
                 <div className="flex gap-3 pt-4">
                   <button
                     type="button"
@@ -628,6 +917,248 @@ export default function HostDashboard() {
                     className="flex-1 py-2 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors"
                   >
                     Add Whisky
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Whisky Modal */}
+        {editingWhisky && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">
+                Edit Whisky
+              </h2>
+              <form onSubmit={updateWhisky} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={editingWhisky.name || ""}
+                    onChange={(e) =>
+                      setEditingWhisky({ ...editingWhisky, name: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Age (years)
+                    </label>
+                    <input
+                      type="number"
+                      value={editingWhisky.age || ""}
+                      onChange={(e) =>
+                        setEditingWhisky({
+                          ...editingWhisky,
+                          age: e.target.value ? parseInt(e.target.value) : null,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                      min="0"
+                      max="100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      ABV (%) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={editingWhisky.abv || ""}
+                      onChange={(e) =>
+                        setEditingWhisky({
+                          ...editingWhisky,
+                          abv: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                      min="0"
+                      max="100"
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Region *
+                  </label>
+                  <select
+                    value={editSelectedRegionId}
+                    onChange={(e) => {
+                      const regionId = e.target.value;
+                      const selectedRegion = regions.find((r) => r.id === regionId);
+                      const previousRegion = regions.find((r) => r.id === editSelectedRegionId);
+
+                      setEditSelectedRegionId(regionId);
+
+                      // Only reset distillery if region actually changed
+                      setEditingWhisky({
+                        ...editingWhisky,
+                        region: selectedRegion?.name || "",
+                        distillery: previousRegion?.id !== regionId ? "" : editingWhisky.distillery,
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Select a region</option>
+                    {regions.map((region) => (
+                      <option key={region.id} value={region.id}>
+                        {region.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Distillery *
+                  </label>
+                  <select
+                    value={editingWhisky.distillery || ""}
+                    onChange={(e) =>
+                      setEditingWhisky({ ...editingWhisky, distillery: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    required
+                    disabled={!editSelectedRegionId || distilleries.length === 0}
+                  >
+                    <option value="">
+                      {editSelectedRegionId
+                        ? distilleries.length === 0
+                          ? "Loading..."
+                          : "Select a distillery"
+                        : "Select a region first"}
+                    </option>
+                    {distilleries.map((distillery) => (
+                      <option key={distillery.id} value={distillery.name}>
+                        {distillery.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Category
+                  </label>
+                  <input
+                    type="text"
+                    value={editingWhisky.category || ""}
+                    onChange={(e) =>
+                      setEditingWhisky({ ...editingWhisky, category: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    placeholder="e.g., Single Malt, Blend, Bourbon"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Bottling Type
+                  </label>
+                  <select
+                    value={editingWhisky.bottling_type || "OB"}
+                    onChange={(e) =>
+                      setEditingWhisky({
+                        ...editingWhisky,
+                        bottling_type: e.target.value as "IB" | "OB",
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  >
+                    <option value="OB">Official Bottling (OB)</option>
+                    <option value="IB">Independent Bottling (IB)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cask Type
+                  </label>
+                  <input
+                    type="text"
+                    value={editingWhisky.cask_type || ""}
+                    onChange={(e) =>
+                      setEditingWhisky({ ...editingWhisky, cask_type: e.target.value || null })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    placeholder="e.g., Bourbon, Sherry, Port"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    My Score
+                  </label>
+                  <select
+                    value={editingWhisky.host_score ?? ""}
+                    onChange={(e) =>
+                      setEditingWhisky({
+                        ...editingWhisky,
+                        host_score: e.target.value ? parseInt(e.target.value) : null,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  >
+                    <option value="">Not scored yet</option>
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    WhiskyBase Link
+                  </label>
+                  <input
+                    type="url"
+                    value={editingWhisky.whiskybase_link || ""}
+                    onChange={(e) =>
+                      setEditingWhisky({ ...editingWhisky, whiskybase_link: e.target.value || null })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    placeholder="https://www.whiskybase.com/whiskies/..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tasting Reference
+                  </label>
+                  <input
+                    type="text"
+                    value={editingWhisky.tasting_reference || ""}
+                    onChange={(e) =>
+                      setEditingWhisky({ ...editingWhisky, tasting_reference: e.target.value || null })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    placeholder="e.g., Red dot, yellow dot etc"
+                  />
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingWhisky(null);
+                      setEditSelectedRegionId("");
+                      setDistilleries([]);
+                    }}
+                    className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isUpdatingWhisky}
+                    className="flex-1 py-2 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isUpdatingWhisky ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
               </form>
