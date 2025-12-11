@@ -47,14 +47,14 @@ export default function Dashboard() {
                 .eq("user_id", userId);
 
             if (participants && participants.length > 0) {
-                const sessionIds = participants.map((p) => p.session_id);
+                const sessionIds = participants.map((p: { session_id: string }) => p.session_id);
                 const { data: participated } = await supabase
                     .from("sessions")
                     .select("*")
                     .in("id", sessionIds)
                     .order("created_at", { ascending: false });
 
-                setParticipatedSessions(participated || []);
+                setParticipatedSessions((participated as Session[]) || []);
             }
 
             setHostedSessions(hosted || []);
@@ -133,12 +133,12 @@ export default function Dashboard() {
                                             </h3>
                                             <span
                                                 className={`px-2 py-1 text-xs rounded ${session.status === "waiting"
-                                                        ? "bg-yellow-100 text-yellow-800"
-                                                        : session.status === "collecting"
-                                                            ? "bg-blue-100 text-blue-800"
-                                                            : session.status === "reviewing"
-                                                                ? "bg-purple-100 text-purple-800"
-                                                                : "bg-green-100 text-green-800"
+                                                    ? "bg-yellow-100 text-yellow-800"
+                                                    : session.status === "collecting"
+                                                        ? "bg-blue-100 text-blue-800"
+                                                        : session.status === "reviewing"
+                                                            ? "bg-purple-100 text-purple-800"
+                                                            : "bg-green-100 text-green-800"
                                                     }`}
                                             >
                                                 {session.status}
@@ -182,12 +182,12 @@ export default function Dashboard() {
                                             </h3>
                                             <span
                                                 className={`px-2 py-1 text-xs rounded ${session.status === "waiting"
-                                                        ? "bg-yellow-100 text-yellow-800"
-                                                        : session.status === "collecting"
-                                                            ? "bg-blue-100 text-blue-800"
-                                                            : session.status === "reviewing"
-                                                                ? "bg-purple-100 text-purple-800"
-                                                                : "bg-green-100 text-green-800"
+                                                    ? "bg-yellow-100 text-yellow-800"
+                                                    : session.status === "collecting"
+                                                        ? "bg-blue-100 text-blue-800"
+                                                        : session.status === "reviewing"
+                                                            ? "bg-purple-100 text-purple-800"
+                                                            : "bg-green-100 text-green-800"
                                                     }`}
                                             >
                                                 {session.status}
