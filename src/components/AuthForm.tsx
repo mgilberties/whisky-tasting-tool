@@ -26,9 +26,16 @@ export default function AuthForm({ onSuccess, defaultMode = "signin" }: AuthForm
         setMessage("");
 
         try {
+            console.log("[AuthForm] Sign in started", { email });
             const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
                 email,
                 password,
+            });
+
+            console.log("[AuthForm] Sign in response", {
+                hasUser: !!signInData?.user,
+                hasSession: !!signInData?.session,
+                error: signInError,
             });
 
             if (signInError) throw signInError;
@@ -53,8 +60,10 @@ export default function AuthForm({ onSuccess, defaultMode = "signin" }: AuthForm
                 }
             }
 
+            console.log("[AuthForm] Sign in successful, calling onSuccess");
             onSuccess?.();
         } catch (err: any) {
+            console.error("[AuthForm] Sign in error", err);
             setError(err.message || "Failed to sign in");
         } finally {
             setLoading(false);

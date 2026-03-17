@@ -20,11 +20,18 @@ export default function Home() {
   useEffect(() => {
     // Check for existing session and verify account is not disabled
     const checkSession = async () => {
+      console.log("[Home] Checking existing session");
       const { data: { session } } = await supabase.auth.getSession();
+      console.log("[Home] getSession result", {
+        hasSession: !!session,
+        userId: session?.user?.id,
+        email: session?.user?.email,
+      });
       if (session?.user) {
         // Verify account is not disabled
         const { checkIfUserDisabled } = await import("@/lib/supabase");
         try {
+          console.log("[Home] Checking if user is disabled (initial)", { userId: session.user.id });
           const isDisabled = await checkIfUserDisabled(session.user.id);
           if (isDisabled) {
             await supabase.auth.signOut();
@@ -37,6 +44,10 @@ export default function Home() {
         }
       }
       setUser(session?.user ?? null);
+      console.log("[Home] Initial session user set", {
+        hasUser: !!session?.user,
+        email: session?.user?.email,
+      });
     };
 
     checkSession();
@@ -45,10 +56,17 @@ export default function Home() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log("[Home] onAuthStateChange", {
+        event: _event,
+        hasSession: !!session,
+        userId: session?.user?.id,
+        email: session?.user?.email,
+      });
       if (session?.user) {
         // Verify account is not disabled
         const { checkIfUserDisabled } = await import("@/lib/supabase");
         try {
+          console.log("[Home] Checking if user is disabled (onAuthStateChange)", { userId: session.user.id });
           const isDisabled = await checkIfUserDisabled(session.user.id);
           if (isDisabled) {
             await supabase.auth.signOut();
@@ -61,6 +79,10 @@ export default function Home() {
         }
       }
       setUser(session?.user ?? null);
+      console.log("[Home] Auth state user set", {
+        hasUser: !!session?.user,
+        email: session?.user?.email,
+      });
     });
 
     return () => subscription.unsubscribe();
